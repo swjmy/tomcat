@@ -606,6 +606,7 @@ public class Catalina {
             }
 
             try {
+                // 使用上述定义好的digester规则去解析server.xml
                 inputSource.setByteStream(inputStream);
                 digester.push(this);
                 digester.parse(inputSource);
