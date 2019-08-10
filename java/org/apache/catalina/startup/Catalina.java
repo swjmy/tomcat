@@ -350,6 +350,7 @@ public class Catalina {
                             "addConnector",
                             "org.apache.catalina.connector.Connector");
 
+        //#region Connector节点下的各个组作
         digester.addObjectCreate("Server/Service/Connector/SSLHostConfig",
                                  "org.apache.tomcat.util.net.SSLHostConfig");
         digester.addSetProperties("Server/Service/Connector/SSLHostConfig");
@@ -394,6 +395,7 @@ public class Catalina {
         digester.addSetNext("Server/Service/Connector/UpgradeProtocol",
                             "addUpgradeProtocol",
                             "org.apache.coyote.UpgradeProtocol");
+        //#endregion
 
         // Add RuleSets for nested elements
         digester.addRuleSet(new NamingRuleSet("Server/GlobalNamingResources/"));
