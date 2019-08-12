@@ -822,6 +822,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
         // Populate the extension validator with JARs from common and shared
         // class loaders
         if (getCatalina() != null) {
+            // 这里获取到的是sharedClassLoader
             ClassLoader cl = getCatalina().getParentClassLoader();
             // Walk the class loader hierarchy. Stop at the system class loader.
             // This will add the shared (if present) and common class loaders
@@ -844,6 +845,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
                         }
                     }
                 }
+                // 在第一次循环是 其parent 是Common Class Loader
                 cl = cl.getParent();
             }
         }
