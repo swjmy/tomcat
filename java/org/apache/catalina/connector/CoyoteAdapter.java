@@ -300,6 +300,7 @@ public class CoyoteAdapter implements Adapter {
     public void service(org.apache.coyote.Request req, org.apache.coyote.Response res)
             throws Exception {
 
+        //region  初始化Connector下的 Request , Response
         Request request = (Request) req.getNote(ADAPTER_NOTES);
         Response response = (Response) res.getNote(ADAPTER_NOTES);
 
@@ -325,6 +326,7 @@ public class CoyoteAdapter implements Adapter {
         if (connector.getXpoweredBy()) {
             response.addHeader("X-Powered-By", POWERED_BY);
         }
+        // endregion
 
         boolean async = false;
         boolean postParseSuccess = false;
@@ -334,15 +336,21 @@ public class CoyoteAdapter implements Adapter {
         try {
             // Parse and set Catalina and configuration specific
             // request parameters
+            //region 请求映射
             postParseSuccess = postParseRequest(req, request, res, response);
+            //endregion
             if (postParseSuccess) {
                 //check valves if we support async
                 request.setAsyncSupported(
                         connector.getService().getContainer().getPipeline().isAsyncSupported());
                 // Calling the container
+                //region 得到当前Engine的第一个Valve并执行
                 connector.getService().getContainer().getPipeline().getFirst().invoke(
                         request, response);
+                //endregion
             }
+
+            //region 判断是否是异步,并执行相应的逻辑
             if (request.isAsync()) {
                 async = true;
                 ReadListener readListener = req.getReadListener();
@@ -374,9 +382,13 @@ public class CoyoteAdapter implements Adapter {
                 response.finishResponse();
             }
 
+            //endregion
+
         } catch (IOException e) {
             // Ignore
         } finally {
+
+            //region 请求完成之后,打日志,回收资源
             AtomicBoolean error = new AtomicBoolean(false);
             res.action(ActionCode.IS_ERROR, error);
 
@@ -423,6 +435,7 @@ public class CoyoteAdapter implements Adapter {
                 request.recycle();
                 response.recycle();
             }
+            //endregion
         }
     }
 
@@ -570,6 +583,7 @@ public class CoyoteAdapter implements Adapter {
         // If the processor has set the scheme (AJP does this, HTTP does this if
         // SSL is enabled) use this to set the secure flag as well. If the
         // processor hasn't set it, use the settings from the connector
+        // region 对scheme 进行处理, http 或者 https
         if (req.scheme().isNull()) {
             // Use connector scheme and secure configuration, (defaults to
             // "http" and false respectively)
@@ -579,9 +593,11 @@ public class CoyoteAdapter implements Adapter {
             // Use processor specified scheme to determine secure state
             request.setSecure(req.scheme().equals("https"));
         }
+        // endregion
 
         // At this point the Host header has been processed.
         // Override if the proxyPort/proxyHost are set
+        // region 设置代理
         String proxyName = connector.getProxyName();
         int proxyPort = connector.getProxyPort();
         if (proxyPort != 0) {
@@ -597,10 +613,13 @@ public class CoyoteAdapter implements Adapter {
         if (proxyName != null) {
             req.serverName().setString(proxyName);
         }
+        // endregion
+
 
         MessageBytes undecodedURI = req.requestURI();
 
         // Check for ping OPTIONS * request
+        // region 判断* 和 OPTIONS的请求, 当URI是*,并且方法不是OPTIONS时会返回400
         if (undecodedURI.equals("*")) {
             if (req.method().equalsIgnoreCase("OPTIONS")) {
                 StringBuilder allow = new StringBuilder();
@@ -617,9 +636,11 @@ public class CoyoteAdapter implements Adapter {
                 response.sendError(400, "Invalid URI");
             }
         }
+        // endregion
 
         MessageBytes decodedURI = req.decodedURI();
 
+        // region 对URI进行解码
         if (undecodedURI.getType() == MessageBytes.T_BYTES) {
             // Copy the raw URI to the decodedURI
             decodedURI.duplicate(undecodedURI);
@@ -664,8 +685,10 @@ public class CoyoteAdapter implements Adapter {
                 decodedURI.setChars(uriCC.getBuffer(), uriCC.getStart(), semicolon);
             }
         }
+        // endregion
 
         // Request mapping.
+        // region 寻找uri的处理映射,就是我们的url对应的servlet处理器
         MessageBytes serverName;
         if (connector.getUseIPVHosts()) {
             serverName = req.localName();
@@ -692,6 +715,7 @@ public class CoyoteAdapter implements Adapter {
 
         while (mapRequired) {
             // This will map the the latest version by default
+            // 按照匹配请求路径进行匹配
             connector.getService().getMapper().map(serverName, decodedURI,
                     version, request.getMappingData());
 
@@ -793,7 +817,10 @@ public class CoyoteAdapter implements Adapter {
             }
         }
 
+        // endregion
+
         // Possible redirect
+        // region 看看有没有重定向,如果有的话,就跳转
         MessageBytes redirectPathMB = request.getMappingData().redirectPath;
         if (!redirectPathMB.isNull()) {
             String redirectPath = URLEncoder.DEFAULT.encode(
@@ -816,8 +843,10 @@ public class CoyoteAdapter implements Adapter {
             request.getContext().logAccess(request, response, 0, true);
             return false;
         }
+        // endregion
 
         // Filter trace method
+        // region 如果是TRACE方法的话,就在header里面添加相关的信息
         if (!connector.getAllowTrace()
                 && req.method().equalsIgnoreCase("TRACE")) {
             Wrapper wrapper = request.getWrapper();
@@ -845,9 +874,11 @@ public class CoyoteAdapter implements Adapter {
             request.getContext().logAccess(request, response, 0, true);
             return false;
         }
+        // endregion
 
+        //region 执行连接器的认证及授权
         doConnectorAuthenticationAuthorization(req, request);
-
+        //endregion
         return true;
     }
 

@@ -138,6 +138,7 @@ public final class ApplicationFilterChain implements FilterChain {
         throws IOException, ServletException {
 
         if( Globals.IS_SECURITY_ENABLED ) {
+            // 如果开启了全局安全保护,就使用AccessController.doPrivileged包装一下
             final ServletRequest req = request;
             final ServletResponse res = response;
             try {
@@ -163,6 +164,7 @@ public final class ApplicationFilterChain implements FilterChain {
                     throw new ServletException(e.getMessage(), e);
             }
         } else {
+            // 没有配置全局安全保护,就直接调用真正的处理逻辑
             internalDoFilter(request,response);
         }
     }
@@ -190,6 +192,7 @@ public final class ApplicationFilterChain implements FilterChain {
                     Object[] args = new Object[]{req, res, this};
                     SecurityUtil.doAsPrivilege ("doFilter", filter, classType, args, principal);
                 } else {
+                    // 请求当前过滤器链中的下一个filter进行操作
                     filter.doFilter(request, response, this);
                 }
             } catch (IOException | ServletException | RuntimeException e) {
@@ -217,6 +220,7 @@ public final class ApplicationFilterChain implements FilterChain {
             if ((request instanceof HttpServletRequest) &&
                     (response instanceof HttpServletResponse) &&
                     Globals.IS_SECURITY_ENABLED ) {
+                //获取到request , Response
                 final ServletRequest req = request;
                 final ServletResponse res = response;
                 Principal principal =
@@ -228,7 +232,9 @@ public final class ApplicationFilterChain implements FilterChain {
                                            args,
                                            principal);
             } else {
+                // 去servlet中真正执行逻辑
                 servlet.service(request, response);
+                System.out.println(response);
             }
         } catch (IOException | ServletException | RuntimeException e) {
             throw e;
