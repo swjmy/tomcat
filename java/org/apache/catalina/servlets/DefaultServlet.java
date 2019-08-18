@@ -819,6 +819,7 @@ public class DefaultServlet extends HttpServlet {
         boolean serveContent = content;
 
         // Identify the requested resource path
+        //region 标识我们请求的资源路径
         String path = getRelativePath(request, true);
 
         if (debug > 0) {
@@ -835,10 +836,10 @@ public class DefaultServlet extends HttpServlet {
             doDirectoryRedirect(request, response);
             return;
         }
-
+        // endregion
         WebResource resource = resources.getResource(path);
         boolean isError = DispatcherType.ERROR == request.getDispatcherType();
-
+        //region  如果资源不存在,则返回404
         if (!resource.exists()) {
             // Check if we're included so we can return the appropriate
             // missing resource name in the error
@@ -857,11 +858,14 @@ public class DefaultServlet extends HttpServlet {
                 response.sendError(((Integer) request.getAttribute(
                         RequestDispatcher.ERROR_STATUS_CODE)).intValue());
             } else {
+                // 这里就是常见的返回的404
                 response.sendError(HttpServletResponse.SC_NOT_FOUND, requestUri);
             }
             return;
         }
+        //endregion
 
+        //region 如果资源不可读,则返回403
         if (!resource.canRead()) {
             // Check if we're included so we can return the appropriate
             // missing resource name in the error
@@ -885,7 +889,7 @@ public class DefaultServlet extends HttpServlet {
             }
             return;
         }
-
+        //# endregion
         boolean included = false;
         // Check if the conditions specified in the optional If headers are
         // satisfied.
@@ -894,11 +898,13 @@ public class DefaultServlet extends HttpServlet {
             included = (request.getAttribute(
                     RequestDispatcher.INCLUDE_CONTEXT_PATH) != null);
             if (!included && !isError && !checkIfHeaders(request, response, resource)) {
+                response.setCharacterEncoding("utf-8");
                 return;
             }
         }
 
         // Find content type.
+        //region 去获取到资源的属性,并加到Response里面
         String contentType = resource.getMimeType();
         if (contentType == null) {
             contentType = getServletContext().getMimeType(resource.getName());
@@ -979,7 +985,9 @@ public class DefaultServlet extends HttpServlet {
                 serveContent = false;
             }
         }
+        // endregion
 
+        // region 设置各种输出的属性
         ServletOutputStream ostream = null;
         PrintWriter writer = null;
 
@@ -1016,7 +1024,7 @@ public class DefaultServlet extends HttpServlet {
         }
 
         String outputEncoding = response.getCharacterEncoding();
-        Charset charset = B2CConverter.getCharset(outputEncoding);
+        Charset charset = StandardCharsets.UTF_8;
         boolean conversionRequired;
         /*
          * The test below deliberately uses != to compare two Strings. This is
@@ -1040,8 +1048,9 @@ public class DefaultServlet extends HttpServlet {
         } else {
             conversionRequired = false;
         }
-
+        // endregion
         if (resource.isDirectory() || isError || ranges == FULL ) {
+            //region 对请求资源是文件夹的处理
             // Set the appropriate output headers
             if (contentType != null) {
                 if (debug > 0)
@@ -1063,7 +1072,8 @@ public class DefaultServlet extends HttpServlet {
                     response.setContentLengthLong(contentLength);
                 }
             }
-
+            // endregion
+            //region 如果要展示内容的话,就读取资源内容
             if (serveContent) {
                 try {
                     response.setBufferSize(output);
@@ -1139,6 +1149,7 @@ public class DefaultServlet extends HttpServlet {
                                     renderResult = resource.getInputStream();
                                 } else {
                                     // Use the resource content directly
+                                    response.setCharacterEncoding("utf-8");
                                     ostream.write(resourceBody);
                                 }
                             }
@@ -1151,9 +1162,9 @@ public class DefaultServlet extends HttpServlet {
                     }
                 }
             }
-
+            //endregion
         } else {
-
+            //region 如果是文件的话,就设置response属性
             if ((ranges == null) || (ranges.isEmpty()))
                 return;
 
@@ -1210,6 +1221,7 @@ public class DefaultServlet extends HttpServlet {
                     }
                 }
             }
+            // endregion
         }
     }
 
